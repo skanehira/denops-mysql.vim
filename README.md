@@ -1,11 +1,36 @@
-# denops-template.vim
-A plugin template for [denops](https://github.com/vim-denops)
+# denops-mysql.vim
+Vim plugin for mysql
+
+## Features
+- execute/query sql
 
 ## Usage
-1. Fork this repository.
-   Repository name must be `denops-xxx.vim`
-2. Run `make init`
-   Its rename directory `./denops/template` to `./denops/xxx`, `xxx` is your repository name that part of `denops-xxx`.
+```vim
+" execute/query
+" current buffer will be used as sql query
+:MySQLQuery
+" connect to database
+:MySQLConnect
+```
+
+## Config
+`$XDG_HOME/denops_mysql/config.yaml`
+
+```yaml
+databases:
+  - alias: gorilla
+    username: gorilla
+    password: gorilla
+    dbname: gorilla
+    host: gorilla
+    port: 5555
+  - alias: test
+    username: test
+    password: test
+    dbname: test
+    host: localhost
+    port: 3306
+```
 
 ## Author
 skanehira
