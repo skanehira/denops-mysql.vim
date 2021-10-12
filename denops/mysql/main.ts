@@ -51,7 +51,7 @@ export async function main(denops: Denops): Promise<void> {
 
   const commands: string[] = [
     `command! -nargs=1 MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
-    `command! MySQLQuery call denops#notify("${denops.name}", "query", [])`,
+    `command! -range MySQLQuery call denops#notify("${denops.name}", "query", [<line1>, <line2>])`,
   ];
 
   for (const cmd of commands) {
@@ -62,7 +62,7 @@ export async function main(denops: Denops): Promise<void> {
     {
       lhs: "gq",
       rhs: ":MySQLQuery<CR>",
-      mode: ["n"],
+      mode: ["n", "v"],
     },
   ];
 
@@ -162,7 +162,7 @@ export async function main(denops: Denops): Promise<void> {
       }
     },
 
-    async query(): Promise<void> {
+    async query(start: unknown, end: unknown): Promise<void> {
       if (!client) {
         const prompt = databaseNames.map((n, i) => {
           return `${i}: ${n}`;
@@ -187,9 +187,9 @@ export async function main(denops: Denops): Promise<void> {
         await denops.dispatch(denops.name, "connect", name);
       }
 
-      const text = await denops.eval(`getline(1, "$")`) as string[];
+      const text = await denops.eval(`getline(${start}, ${end})`) as string[];
       if (!text || (text.length === 1 && text[0] === "")) {
-        console.error("buffer is empty");
+        console.error("query is empty");
         return;
       }
 
