@@ -52,6 +52,7 @@ export async function main(denops: Denops): Promise<void> {
   const commands: string[] = [
     `command! -nargs=1 MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
     `command! -range MySQLQuery call denops#notify("${denops.name}", "query", [<line1>, <line2>])`,
+    `command! MySQLConfig call denops#notify("${denops.name}", "openConfig", [])`,
   ];
 
   for (const cmd of commands) {
@@ -160,6 +161,10 @@ export async function main(denops: Denops): Promise<void> {
       } else {
         console.error(`not found config. alias: ${alias}`);
       }
+    },
+
+    async openConfig(): Promise<void> {
+      await denops.cmd(`tabnew ${configFile}`)
     },
 
     async query(start: unknown, end: unknown): Promise<void> {
