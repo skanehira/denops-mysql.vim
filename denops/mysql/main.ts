@@ -62,7 +62,7 @@ export async function main(denops: Denops): Promise<void> {
   const table = new Table();
 
   const commands: string[] = [
-    `command! -nargs=1 MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
+    `command! -nargs=1 -complete=customlist,mysql#databaseNames MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
     `command! -range MySQLQuery call denops#notify("${denops.name}", "query", [<line1>, <line2>])`,
     `command! MySQLConfig call denops#notify("${denops.name}", "openConfig", [])`,
   ];
@@ -174,6 +174,10 @@ export async function main(denops: Denops): Promise<void> {
       } else {
         console.error(`not found config. alias: ${alias}`);
       }
+    },
+
+    async databaseList(): Promise<string[]> {
+      return await Promise.resolve(databaseNames);
     },
 
     async updateConfig(): Promise<void> {
