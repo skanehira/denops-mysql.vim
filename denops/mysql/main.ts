@@ -73,7 +73,7 @@ export async function main(denops: Denops): Promise<void> {
 
   const maps = [
     {
-      lhs: "gq",
+      lhs: "<Plug>(mysql-query)",
       rhs: ":MySQLQuery<CR>",
       mode: ["n", "v"],
     },

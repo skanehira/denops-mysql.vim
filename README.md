@@ -1,16 +1,21 @@
 # denops-mysql.vim
 Vim plugin for mysql
 
+![](https://i.gyazo.com/921fff2f76f4ee59772c3d50fe7cc3fe.gif)
+
 ## Features
-- execute/query sql
+- execute sql
 
 ## Usage
 ```vim
-" execute/query
-" current buffer will be used as sql query
+" execute current line as sql
 :MySQLQuery
+
+" execute selected lines as sql
+:'<,'>MySQLQuery
+
 " connect to database
-:MySQLConnect
+:MySQLConnect test
 ```
 
 ## Config
