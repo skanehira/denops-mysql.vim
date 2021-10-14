@@ -207,7 +207,7 @@ export async function main(denops: Denops): Promise<void> {
         helper.remove("*", "<buffer>");
         helper.define(
           "BufWrite",
-          "*",
+          "<buffer>",
           `call denops#notify("${denops.name}", "updateConfig", [])`,
         );
       });
