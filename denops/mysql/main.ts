@@ -54,7 +54,7 @@ export async function main(denops: Denops): Promise<void> {
   } catch (e) {
     console.error(e.toString());
   }
-  let client: mysql.Client; // current client
+  let client: mysql.Client | undefined; // current client
 
   const clients: Map<string, mysql.Client> = new Map();
 
@@ -151,6 +151,8 @@ export async function main(denops: Denops): Promise<void> {
     return bufnr;
   };
 
+  const isConnectionRefusedError = new RegExp("Connection refused");
+
   denops.dispatcher = {
     async connect(alias: unknown): Promise<void> {
       ensureString(alias);
@@ -181,8 +183,8 @@ export async function main(denops: Denops): Promise<void> {
     },
 
     async updateConfig(): Promise<void> {
-      const buffer = await denops.eval(`getline(1, "$")`) as string[];
-      const contents = buffer.join("\n");
+      const lines = await denops.eval(`getline(1, "$")`) as string[];
+      const contents = lines.join("\n");
       if (!contents) {
         console.error(`config doesn't updated because buffer is empty`);
         return;
@@ -243,7 +245,7 @@ export async function main(denops: Denops): Promise<void> {
       }
 
       try {
-        const result = await client.query(text.join("\n"));
+        const result = await client?.query(text.join("\n"));
         if (result.affectedRows !== undefined) {
           console.log(`Query OK, ${result.affectedRows} rows affected`);
           return;
@@ -255,6 +257,10 @@ export async function main(denops: Denops): Promise<void> {
         const bufnr = await openOutputBuffer(denops);
         await denops.call("setbufline", bufnr, 1, output);
       } catch (e) {
+        const msg = e.toString();
+        if (isConnectionRefusedError.test(msg)) {
+          client = undefined;
+        }
         console.error(e.toString());
       }
     },
