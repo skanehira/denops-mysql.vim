@@ -1,7 +1,7 @@
 # denops-mysql.vim
 Vim plugin for mysql
 
-![](https://i.gyazo.com/921fff2f76f4ee59772c3d50fe7cc3fe.gif)
+![](https://user-images.githubusercontent.com/7888591/137347252-c9548937-75fd-44f5-a054-ece27957a0bb.gif)
 
 ## Features
 - execute sql
