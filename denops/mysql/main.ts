@@ -154,6 +154,7 @@ export async function main(denops: Denops): Promise<void> {
       if (db) {
         client = await new mysql.Client().connect({
           hostname: db.host,
+          port: db.port,
           username: db.username,
           password: db.password,
           db: db.dbname,
@@ -164,7 +165,7 @@ export async function main(denops: Denops): Promise<void> {
     },
 
     async openConfig(): Promise<void> {
-      await denops.cmd(`tabnew ${configFile}`)
+      await denops.cmd(`tabnew ${configFile}`);
     },
 
     async query(start: unknown, end: unknown): Promise<void> {
