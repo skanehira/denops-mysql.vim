@@ -7,3 +7,4 @@ export * as yaml from "https://deno.land/std@0.110.0/encoding/yaml.ts";
 export * as path from "https://deno.land/std@0.110.0/path/mod.ts";
 export * as mapping from "https://deno.land/x/denops_std@v2.0.0/mapping/mod.ts";
 export * from "https://deno.land/x/denops_std@v2.0.0/mapping/types.ts";
+export * as autocmd from "https://deno.land/x/denops_std@v2.0.0/autocmd/mod.ts";

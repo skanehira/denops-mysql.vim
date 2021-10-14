@@ -1,4 +1,5 @@
 import {
+  autocmd,
   Denops,
   ensureNumber,
   ensureString,
@@ -32,22 +33,33 @@ export async function main(denops: Denops): Promise<void> {
 
   // read config
   const contents = await Deno.readTextFile(configFile);
-  const config = yaml.parse(contents) as Config;
-  if (!config.databases || config.databases.length === 0) {
-    console.error(`invalid config: ${configFile}, contents: ${contents}`);
-    return;
-  }
 
+  const readConfig = (contents: string): Config => {
+    const config = yaml.parse(contents) as Config;
+    if (!config.databases || config.databases.length === 0) {
+      throw new Error(`invalid config: ${configFile}, contents: ${contents}`);
+    }
+    return config;
+  };
+
+  let config: Config;
+  let databaseNames: string[];
+  try {
+    config = readConfig(contents);
+
+    // database names for choising
+    databaseNames = config.databases.map((db) => {
+      return db.alias;
+    });
+  } catch (e) {
+    console.error(e.toString());
+  }
   let client: mysql.Client; // current client
+
   const clients: Map<string, mysql.Client> = new Map();
 
   // module for formatting result
   const table = new Table();
-
-  // database names for choising
-  const databaseNames = config.databases.map((db) => {
-    return db.alias;
-  });
 
   const commands: string[] = [
     `command! -nargs=1 MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
@@ -164,8 +176,35 @@ export async function main(denops: Denops): Promise<void> {
       }
     },
 
+    async updateConfig(): Promise<void> {
+      const buffer = await denops.eval(`getline(1, "$")`) as string[];
+      const contents = buffer.join("\n");
+      if (!contents) {
+        console.error(`config doesn't updated because buffer is empty`);
+        return;
+      }
+
+      try {
+        config = readConfig(contents);
+        // database names for choising
+        databaseNames = config.databases.map((db) => {
+          return db.alias;
+        });
+      } catch (e) {
+        console.error(e.toString());
+      }
+    },
+
     async openConfig(): Promise<void> {
       await denops.cmd(`tabnew ${configFile}`);
+      await autocmd.group(denops, "mysql-update-config", (helper) => {
+        helper.remove("*", "<buffer>");
+        helper.define(
+          "BufWrite",
+          "*",
+          `call denops#notify("${denops.name}", "updateConfig", [])`,
+        );
+      });
     },
 
     async query(start: unknown, end: unknown): Promise<void> {
