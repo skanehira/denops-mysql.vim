@@ -108,7 +108,7 @@ export async function main(denops: Denops): Promise<void> {
     }
     await denops.cmd(`new [output]`);
     await denops.cmd(
-      `setlocal buftype=nofile noswapfile nonumber bufhidden=hide nowrap`,
+      `setlocal buftype=nofile noswapfile nonumber bufhidden=wipe nowrap`,
     );
     await denops.cmd(`set ft=mysql-result`);
 
