@@ -6,26 +6,65 @@ import {
   mapping,
   Mode,
   mysql,
-  path,
-  yaml,
 } from "./deps.ts";
-import xdg from "https://deno.land/x/xdg@v9.4.0/src/mod.deno.ts";
 import { Table } from "https://deno.land/x/cliffy@v0.19.0/table/mod.ts";
+import { Config, configFile, parseConfig } from "./config.ts";
 
-const configFile = path.join(xdg.config(), "denops_mysql", "config.yaml");
+const isConnectionRefusedError = new RegExp("Connection refused");
 
-type Database = {
-  alias: string;
-  username: string;
-  password: string;
-  dbname: string;
-  host: string;
-  port: number;
+// module for formatting result
+const table = new Table();
+
+let config: Config;
+let databaseNames: string[];
+
+// deno-lint-ignore no-explicit-any
+export const formatResult = function (result: any): string[] {
+  const header = Object.keys(result[0]);
+  table.header(header);
+
+  // deno-lint-ignore no-explicit-any
+  const body: Array<Array<any>> = new Array<Array<any>>();
+  for (const row of result) {
+    const cols = Object.values(row);
+    for (let i = 0; i < cols.length; i++) {
+      cols[i] = cols[i] ?? "null";
+    }
+    body.push(cols);
+  }
+  table.body(body);
+  table.padding(3);
+  return table.toString().split("\n");
 };
 
-type Config = {
-  databases: Database[];
+export const openOutputBuffer = async (denops: Denops): Promise<number> => {
+  const exists = await denops.call("bufexists", "[output]") as boolean;
+  if (exists) {
+    const bufnr = await denops.call("bufnr", "\\[output\\]");
+    ensureNumber(bufnr);
+    await denops.cmd(`silent call deletebufline(${bufnr}, 1, "$")`);
+    return bufnr;
+  }
+  await denops.cmd(`new [output]`);
+  await denops.cmd(
+    `setlocal buftype=nofile noswapfile nonumber bufhidden=wipe nowrap`,
+  );
+  await denops.cmd(`set ft=mysql-result`);
+
+  const bufnr = await denops.call("bufnr", "\\[output\\]");
+  ensureNumber(bufnr);
+
+  mapping.map(denops, "q", ":bw<CR>", {
+    mode: ["n"],
+    buffer: true,
+    silent: true,
+  });
+
+  return bufnr;
 };
+
+export let client: mysql.Client | undefined; // current client
+export const clients: Map<string, mysql.Client> = new Map();
 
 export async function main(denops: Denops): Promise<void> {
   // disable sql logger
@@ -33,19 +72,8 @@ export async function main(denops: Denops): Promise<void> {
 
   // read config
   const contents = await Deno.readTextFile(configFile);
-
-  const readConfig = (contents: string): Config => {
-    const config = yaml.parse(contents) as Config;
-    if (!config.databases || config.databases.length === 0) {
-      throw new Error(`invalid config: ${configFile}, contents: ${contents}`);
-    }
-    return config;
-  };
-
-  let config: Config;
-  let databaseNames: string[];
   try {
-    config = readConfig(contents);
+    config = parseConfig(contents);
 
     // database names for choising
     databaseNames = config.databases.map((db) => {
@@ -54,13 +82,8 @@ export async function main(denops: Denops): Promise<void> {
   } catch (e) {
     console.error(e.toString());
   }
-  let client: mysql.Client | undefined; // current client
 
-  const clients: Map<string, mysql.Client> = new Map();
-
-  // module for formatting result
-  const table = new Table();
-
+  // define commands
   const commands: string[] = [
     `command! -nargs=1 -complete=customlist,mysql#databaseNames MySQLConnect call denops#notify("${denops.name}", "connect", [<f-args>])`,
     `command! -range MySQLQuery call denops#notify("${denops.name}", "query", [<line1>, <line2>])`,
@@ -71,6 +94,7 @@ export async function main(denops: Denops): Promise<void> {
     await denops.cmd(cmd);
   }
 
+  // define key maps
   const maps = [
     {
       lhs: "<Plug>(mysql-query)",
@@ -90,68 +114,6 @@ export async function main(denops: Denops): Promise<void> {
       },
     );
   }
-
-  // deno-lint-ignore no-explicit-any
-  const formatResult = function (result: any): string[] {
-    const header = Object.keys(result[0]);
-    table.header(header);
-
-    // deno-lint-ignore no-explicit-any
-    const body: Array<Array<any>> = new Array<Array<any>>();
-    for (const row of result) {
-      const cols = Object.values(row);
-      for (let i = 0; i < cols.length; i++) {
-        cols[i] = cols[i] ?? "null";
-      }
-      body.push(cols);
-    }
-    table.body(body);
-    table.padding(3);
-    return table.toString().split("\n");
-  };
-
-  const openOutputBuffer = async (denops: Denops): Promise<number> => {
-    const exists = await denops.call("bufexists", "[output]") as boolean;
-    if (exists) {
-      const bufnr = await denops.call("bufnr", "\\[output\\]");
-      ensureNumber(bufnr);
-      await denops.cmd(`silent call deletebufline(${bufnr}, 1, "$")`);
-      return bufnr;
-    }
-    await denops.cmd(`new [output]`);
-    await denops.cmd(
-      `setlocal buftype=nofile noswapfile nonumber bufhidden=wipe nowrap`,
-    );
-    await denops.cmd(`set ft=mysql-result`);
-
-    const bufnr = await denops.call("bufnr", "\\[output\\]");
-    ensureNumber(bufnr);
-
-    const maps = [
-      {
-        lhs: "q",
-        rhs: ":bw<CR>",
-        mode: ["n"],
-      },
-    ];
-
-    for (const map of maps) {
-      mapping.map(
-        denops,
-        map.lhs,
-        map.rhs,
-        {
-          mode: map.mode as Mode[],
-          buffer: true,
-          silent: true,
-        },
-      );
-    }
-
-    return bufnr;
-  };
-
-  const isConnectionRefusedError = new RegExp("Connection refused");
 
   denops.dispatcher = {
     async connect(alias: unknown): Promise<void> {
@@ -191,7 +153,7 @@ export async function main(denops: Denops): Promise<void> {
       }
 
       try {
-        config = readConfig(contents);
+        config = parseConfig(contents);
         // database names for choising
         databaseNames = config.databases.map((db) => {
           return db.alias;
